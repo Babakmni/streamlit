@@ -44,6 +44,9 @@ import {
   assignDividerColor,
   BaseBlockProps,
   convertKeyToClassName,
+  Direction,
+  getClassnamePrefix,
+  getDirectionOfBlock,
   getKeyFromId,
   isComponentStale,
   shouldComponentBeEnabled,
@@ -51,7 +54,8 @@ import {
 import ElementNodeRenderer from "./ElementNodeRenderer"
 import {
   StyledColumn,
-  StyledHorizontalBlock,
+  StyledFlexContainerBlock,
+  StyledFlexContainerBlockProps,
   StyledVerticalBlock,
   StyledVerticalBlockBorderWrapper,
   StyledVerticalBlockBorderWrapperProps,
@@ -92,8 +96,12 @@ const BlockNodeRenderer = (props: BlockPropsWithWidth): ReactElement => {
     notNullOrUndefined(node.deltaBlock.dialog) ||
     notNullOrUndefined(node.deltaBlock.popover)
 
+  if (node.deltaBlock.flexContainer) {
+    return <FlexBoxContainer {...childProps} />
+  }
+
   const child: ReactElement = (
-    <LayoutBlock
+    <ContainerContentsWrapper
       {...childProps}
       disableFullscreenMode={disableFullscreenMode}
     />
@@ -269,6 +277,133 @@ const ChildRenderer = (props: BlockPropsWithWidth): ReactElement => {
   )
 }
 
+interface ContainerContentsWrapperProps extends BaseBlockProps {
+  node: BlockNode
+}
+
+export const ContainerContentsWrapper = (
+  props: ContainerContentsWrapperProps
+): ReactElement => {
+  const {
+    values: [observedWidth],
+    elementRef: wrapperElement,
+    forceRecalculate,
+  } = useResizeObserver(useMemo(() => ["width"], []))
+
+  // The width should never be set to 0 since it can cause
+  // flickering effects.
+  const calculatedWidth = observedWidth <= 0 ? -1 : observedWidth
+
+  const defaultStyles: StyledFlexContainerBlockProps = {
+    width: calculatedWidth,
+    border: false,
+    height: "100%",
+    direction: Direction.VERTICAL,
+    flex: 1,
+    gap: "small",
+    // TODO: should maxWidth be here, seems in main branch we don't use it anymore
+    // Height is only for containers
+  }
+
+  const propsWithCalculatedWidth = {
+    ...props,
+    width: calculatedWidth,
+  }
+
+  const userKey = getKeyFromId(props.node.deltaBlock.id)
+  return (
+    <StyledFlexContainerBlock
+      ref={wrapperElement}
+      {...defaultStyles}
+      className={classNames(
+        getClassnamePrefix(Direction.VERTICAL),
+        convertKeyToClassName(userKey)
+      )}
+      data-testid={getClassnamePrefix(Direction.VERTICAL)}
+    >
+      <ChildRenderer {...propsWithCalculatedWidth} />
+    </StyledFlexContainerBlock>
+  )
+}
+
+interface FlexBoxContainerProps extends BaseBlockProps {
+  node: BlockNode
+}
+
+const FlexBoxContainer = (props: FlexBoxContainerProps): ReactElement => {
+  const direction = getDirectionOfBlock(props.node.deltaBlock)
+  const {
+    values: [observedWidth],
+    elementRef: wrapperElement,
+    forceRecalculate,
+  } = useResizeObserver(useMemo(() => ["width"], []))
+
+  // The width should never be set to 0 since it can cause
+  // flickering effects.
+  const calculatedWidth = observedWidth <= 0 ? -1 : observedWidth
+
+  const flexContext = useContext(FlexContext)
+  let parentContainerDirection: Direction | undefined
+  if (flexContext?.direction) {
+    parentContainerDirection = flexContext.direction
+  }
+
+  const layoutStyles = useLayoutStyles({
+    width: calculatedWidth,
+    element: props.node.deltaBlock.flexContainer ?? undefined,
+    isFlexContainer: true,
+  })
+
+  const styles = {
+    ...layoutStyles,
+    border: props.node.deltaBlock.flexContainer?.border ?? false,
+    direction: direction,
+  }
+
+  const propsWithCalculatedWidth = {
+    ...props,
+    width: styles.width,
+  }
+
+  // TODO: assumption is this feature is for containers only since they are
+  // the only thing that can have height.
+  const activateScrollToBottom =
+    !!props.node.deltaBlock.flexContainer?.height &&
+    props.node.children.some(node => {
+      return (
+        node instanceof BlockNode && node.deltaBlock.type === "chatMessage"
+      )
+    })
+  // TODO: encorporate scroll to bottom.
+
+  // We need to update the observer whenever the scrolling is activated or deactivated
+  // Otherwise, it still tries to measure the width of the old wrapper element.
+  useEffect(() => {
+    forceRecalculate()
+  }, [forceRecalculate, props.activateScrollToBottom])
+
+  const userKey = getKeyFromId(props.node.deltaBlock.id)
+
+  return (
+    <FlexContextProvider
+      direction={direction}
+      parentContainerDirection={parentContainerDirection}
+    >
+      <StyledFlexContainerBlock
+        ref={wrapperElement}
+        {...styles}
+        className={classNames(
+          getClassnamePrefix(Direction.VERTICAL),
+          convertKeyToClassName(userKey)
+        )}
+        data-testid={getClassnamePrefix(Direction.VERTICAL)}
+      >
+        <ChildRenderer {...propsWithCalculatedWidth} />
+      </StyledFlexContainerBlock>
+    </FlexContextProvider>
+  )
+}
+
 export interface ScrollToBottomVerticalBlockWrapperProps
   extends StyledVerticalBlockBorderWrapperProps {
   children: ReactNode
@@ -370,32 +505,6 @@ const VerticalBlock = (props: BlockPropsWithoutWidth): ReactElement => {
       </StyledVerticalBlockWrapper>
     </VerticalBlockBorderWrapper>
   )
-}
-
-const HorizontalBlock = (props: BlockPropsWithWidth): ReactElement => {
-  // Create a horizontal block as the parent for columns.
-  // The children are always columns, but this is not checked. We just trust the Python side to
-  // do the right thing, then we ask ChildRenderer to handle it.
-  const gap = props.node.deltaBlock.horizontal?.gap ?? ""
-
-  return (
-    <StyledHorizontalBlock
-      gap={gap}
-      className="stHorizontalBlock"
-      data-testid="stHorizontalBlock"
-    >
-      <ChildRenderer {...props} />
-    </StyledHorizontalBlock>
-  )
-}
-
-// A container block with one of two types of layouts: vertical and horizontal.
-function LayoutBlock(props: BlockPropsWithWidth): ReactElement {
-  if (props.node.deltaBlock.horizontal) {
-    return <HorizontalBlock {...props} />
-  }
-
-  return <VerticalBlock {...props} />
 }
 
 export default VerticalBlock

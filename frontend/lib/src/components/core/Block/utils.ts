@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Block as BlockProto } from "@streamlit/protobuf"
+
 import { AppNode, BlockNode } from "~lib/AppNode"
 import { ComponentRegistry } from "~lib/components/widgets/CustomComponent"
 import { FileUploadClient } from "~lib/FileUploadClient"
@@ -22,6 +24,36 @@ import { StreamlitEndpoints } from "~lib/StreamlitEndpoints"
 import { EmotionTheme, getDividerColors } from "~lib/theme"
 import { isValidElementId } from "~lib/util/utils"
 import { FormsData, WidgetStateManager } from "~lib/WidgetStateManager"
+
+export enum Direction {
+  HORIZONTAL = "row",
+  VERTICAL = "column",
+}
+
+export function getDirectionFlexContainer(
+  flexContainer: BlockProto.IFlexContainer
+) {
+  if (
+    flexContainer.direction === BlockProto.FlexContainer.Direction.HORIZONTAL
+  ) {
+    return Direction.HORIZONTAL
+  }
+  return Direction.VERTICAL
+}
+
+export function getDirectionOfBlock(block: BlockProto): Direction {
+  if (block.flexContainer) {
+    return getDirectionFlexContainer(block.flexContainer)
+  } else {
+    return Direction.VERTICAL
+  }
+}
+
+export function getClassnamePrefix(direction: Direction): string {
+  return direction === Direction.HORIZONTAL
+    ? "stHorizontalBlock"
+    : "stVerticalBlock"
+}
 
 export function shouldComponentBeEnabled(
   elementType: string,

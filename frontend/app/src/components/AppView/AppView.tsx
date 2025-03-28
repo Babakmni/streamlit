@@ -29,7 +29,6 @@ import {
   LibContext,
   Profiler,
   ScriptRunState,
-  VerticalBlock,
   WidgetStateManager,
 } from "@streamlit/lib"
 import { IAppPage, Logo } from "@streamlit/protobuf"
@@ -55,6 +54,7 @@ import {
   StyledStickyBottomContainer,
 } from "./styled-components"
 import ScrollToBottomContainer from "./ScrollToBottomContainer"
+import { ContainerContentsWrapper } from "~lib/components/core/Block/Block"
 
 const LOG = getLogger("AppView")
 export interface AppViewProps {
@@ -230,7 +230,7 @@ function AppView(props: AppViewProps): ReactElement {
     : StyledAppViewMain
 
   const renderBlock = (node: BlockNode): ReactElement => (
-    <VerticalBlock
+    <ContainerContentsWrapper
       node={node}
       endpoints={endpoints}
       scriptRunId={scriptRunId}

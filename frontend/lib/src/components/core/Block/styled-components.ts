@@ -32,26 +32,6 @@ function translateGapWidth(gap: string, theme: EmotionTheme): string {
   }
   return gapWidth
 }
-export interface StyledHorizontalBlockProps {
-  gap: string
-}
-
-export const StyledHorizontalBlock = styled.div<StyledHorizontalBlockProps>(
-  ({ theme, gap }) => {
-    const gapWidth = translateGapWidth(gap, theme)
-
-    return {
-      // While using flex for columns, padding is used for large screens and gap
-      // for small ones. This can be adjusted once more information is passed.
-      // More information and discussions can be found: Issue #2716, PR #2811
-      display: "flex",
-      flexWrap: "wrap",
-      flexGrow: 1,
-      alignItems: "stretch",
-      gap: gapWidth,
-    }
-  }
-)
 
 export interface StyledElementContainerProps {
   isStale: boolean
@@ -202,4 +182,37 @@ export const StyledVerticalBlockBorderWrapper =
         overflow: "auto",
       }),
     })
+  )
+
+export interface StyledFlexContainerBlockProps {
+  ref?: React.RefObject<any>
+  border: boolean
+  width: React.CSSProperties["width"]
+  height: React.CSSProperties["height"]
+  direction: React.CSSProperties["flexDirection"]
+  gap?: string | undefined
+  flex?: React.CSSProperties["flex"]
+}
+
+export const StyledFlexContainerBlock =
+  styled.div<StyledFlexContainerBlockProps>(
+    ({ theme, border, width, height, direction, gap, flex }) => {
+      let gapWidth
+      if (!!gap) {
+        gapWidth = translateGapWidth(gap, theme)
+      }
+
+      return {
+        ...(border && {
+          border: `${theme.sizes.borderWidth} solid ${theme.colors.borderColor}`,
+          borderRadius: theme.radii.default,
+          padding: `calc(${theme.spacing.lg} - ${theme.sizes.borderWidth})`,
+        }),
+        gap: gapWidth,
+        width,
+        height,
+        flexDirection: direction,
+        flex,
+      }
+    }
   )
